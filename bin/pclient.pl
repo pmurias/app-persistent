@@ -7,8 +7,32 @@ use JSON::XS;
 use Term::ReadKey;
 use Data::Dumper;
 use Cwd qw(getcwd);
+
+my $ARG_name = "pserver";
+my $ARG_socket;
+
+# anything between +PC and -PC is for us, everything else is for them
+my (@args) = @ARGV;
+my @argv;
+while (@args) {
+    my $arg = shift @args;
+
+    if ($arg eq '+PC') {
+        while (@args || die("+PC must be closed by -PC\n") and (my $arg = shift(@args)) ne '-PC') {
+            if ($arg eq '--name') {
+                $ARG_name = shift(@args);
+            } elsif ($arg eq '--socket') {
+                $ARG_socket = shift(@args);
+            }
+        }
+    } else {
+        push(@argv,$arg);
+    }
+}
+my $socket_name = $ARG_socket // "/tmp/pserver-$ENV{USER}/$ARG_name";
+
 socket(SERVER,PF_UNIX,SOCK_STREAM,0);
-connect(SERVER, sockaddr_un('/tmp/pserver-pawel/pserver'));
+connect(SERVER, sockaddr_un($socket_name));
 sub input {
     my ($rin,$win,$ein);
     $rin = $win = $ein = '';
@@ -27,7 +51,7 @@ $| = 1;
 select($oldfh);
 
 command {ProgramName => "pserver"};
-command {CommandLineArgs => \@ARGV};
+command {CommandLineArgs => \@argv};
 my @env;
 while (my ($k,$v) = each %ENV) {
     push @env,[$k,$v];
